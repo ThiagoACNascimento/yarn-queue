@@ -13,7 +13,7 @@ export class UsersService {
   findOneByEmail(email: string, includePassword: boolean = false) {
     return this.prisma.user.findUnique({
       where: { email },
-      omit: { password: !includePassword },
+      omit: { password_hash: !includePassword },
     });
   }
 }

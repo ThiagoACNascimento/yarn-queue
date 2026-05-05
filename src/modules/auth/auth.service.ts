@@ -16,20 +16,23 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  // Used for timing attack security
+  private static readonly TIMING_SAFE_DUMMY_HASH =
+    '$2a$10$.ELlUrrqrb93WJJwkLbZc.HDcKCKhabDJLRwIwayfI1R6Au3vnzKq';
+
   async register(userValues: RegisterDto) {
     const foundUser = await this.userService.findOneByEmail(userValues.email);
 
+    // TODO: Refactor after email validation
     if (foundUser) {
-      throw new BadRequestException(
-        'Email aready exists, try with another email.',
-      );
+      throw new BadRequestException('Erro, try again.');
     }
 
-    const hashedPassword = await bcrypt.hash(userValues.password, 1);
+    const hashedPassword = await bcrypt.hash(userValues.password, 10);
 
     const newUser = await this.userService.create({
       ...userValues,
-      password: hashedPassword,
+      password_hash: hashedPassword,
     });
 
     const token = this.jwtService.sign({ sub: newUser.id, role: newUser.role });
@@ -44,9 +47,10 @@ export class AuthService {
     );
 
     if (!foundUser) {
-      const FAKE_HASH =
-        '$2a$12$.ELlUrrqrb93WJJwkLbZc.HDcKCKhabDJLRwIwayfI1R6Au3vnzKq';
-      await bcrypt.compare(`${userValues.password}`, FAKE_HASH);
+      await bcrypt.compare(
+        userValues.password,
+        AuthService.TIMING_SAFE_DUMMY_HASH,
+      );
 
       throw new UnauthorizedException(
         'Email or Password is incorrect. Try again',
@@ -55,7 +59,7 @@ export class AuthService {
 
     const isCorrectPassword = await bcrypt.compare(
       userValues.password,
-      foundUser.password,
+      foundUser.password_hash,
     );
 
     if (!isCorrectPassword) {
@@ -69,7 +73,7 @@ export class AuthService {
       role: foundUser.role,
     });
 
-    const { password: _password, ...user } = foundUser;
+    const { password_hash: _password_hash, ...user } = foundUser;
 
     return { user, token };
   }
