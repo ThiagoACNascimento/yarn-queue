@@ -32,7 +32,7 @@ export class AuthService {
 
     const newUser = await this.userService.create({
       ...userValues,
-      password: hashedPassword,
+      password_hash: hashedPassword,
     });
 
     const token = this.jwtService.sign({ sub: newUser.id, role: newUser.role });
@@ -59,7 +59,7 @@ export class AuthService {
 
     const isCorrectPassword = await bcrypt.compare(
       userValues.password,
-      foundUser.password,
+      foundUser.password_hash,
     );
 
     if (!isCorrectPassword) {
@@ -73,7 +73,7 @@ export class AuthService {
       role: foundUser.role,
     });
 
-    const { password: _password, ...user } = foundUser;
+    const { password_hash: _password_hash, ...user } = foundUser;
 
     return { user, token };
   }
