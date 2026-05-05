@@ -10,7 +10,10 @@ export class UsersService {
     return this.prisma.user.create({ data });
   }
 
-  findOneByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+  findOneByEmail(email: string, includePassword: boolean = false) {
+    return this.prisma.user.findUnique({
+      where: { email },
+      omit: { password: !includePassword },
+    });
   }
 }

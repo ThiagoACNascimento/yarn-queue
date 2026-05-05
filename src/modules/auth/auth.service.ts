@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -29,11 +34,43 @@ export class AuthService {
 
     const token = this.jwtService.sign({ sub: newUser.id, role: newUser.role });
 
-    const userReturn = {
-      ...newUser,
-      token,
-    };
+    return { user: newUser, token };
+  }
 
-    return userReturn;
+  async login(userValues: LoginDto) {
+    const foundUser = await this.userService.findOneByEmail(
+      userValues.email,
+      true,
+    );
+
+    if (!foundUser) {
+      const FAKE_HASH =
+        '$2a$12$.ELlUrrqrb93WJJwkLbZc.HDcKCKhabDJLRwIwayfI1R6Au3vnzKq';
+      await bcrypt.compare(`${userValues.password}`, FAKE_HASH);
+
+      throw new UnauthorizedException(
+        'Email or Password is incorrect. Try again',
+      );
+    }
+
+    const isCorrectPassword = await bcrypt.compare(
+      userValues.password,
+      foundUser.password,
+    );
+
+    if (!isCorrectPassword) {
+      throw new UnauthorizedException(
+        'Email or Password is incorrect. Try again',
+      );
+    }
+
+    const token: string = this.jwtService.sign({
+      sub: foundUser.id,
+      role: foundUser.role,
+    });
+
+    const { password: _password, ...user } = foundUser;
+
+    return { user, token };
   }
 }
