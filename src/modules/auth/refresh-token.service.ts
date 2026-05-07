@@ -19,7 +19,7 @@ export class RefreshTokenService {
     const token = this.generateToken();
     const tokenHash = this.hashToken(token);
     const days = this.config.get<number>('REFRESH_TOKEN_EXPIRES_IN_DAYS') ?? 7;
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * days); // make const variable?
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * days);
 
     const data: Prisma.RefreshTokenCreateInput = {
       user_agent: userAgent,
@@ -32,8 +32,6 @@ export class RefreshTokenService {
     };
 
     await this.prisma.refreshToken.create({ data });
-
-    console.log(token, expiresAt);
 
     return { token, expiresAt };
   }
