@@ -4,6 +4,8 @@ import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
+import { RefreshTokenService } from './refresh-token.service';
+import { PrismaModule } from '../../infra/database/prisma.module';
 
 @Module({
   imports: [
@@ -19,8 +21,9 @@ import { UsersModule } from '../users/users.module';
       inject: [ConfigService],
     }),
     UsersModule,
+    PrismaModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, RefreshTokenService],
 })
 export class AuthModule {}
