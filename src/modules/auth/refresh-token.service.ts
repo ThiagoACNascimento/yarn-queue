@@ -71,6 +71,23 @@ export class RefreshTokenService {
     };
   }
 
+  async revokeRefreshToken(token: string): Promise<void> {
+    const hashedToken = this.hashToken(token);
+
+    // no fail if not found
+    await this.prisma.refreshToken.updateMany({
+      where: { token_hash: hashedToken },
+      data: { revoked_at: new Date() },
+    });
+  }
+
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { user_id: userId, revoked_at: null },
+      data: { revoked_at: new Date() },
+    });
+  }
+
   private generateToken(): string {
     return randomBytes(64).toString('hex');
   }
