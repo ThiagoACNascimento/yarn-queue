@@ -19,7 +19,7 @@ export class RefreshTokenService {
     const token = this.generateToken();
     const tokenHash = this.hashToken(token);
     const days = this.config.get<number>('REFRESH_TOKEN_EXPIRES_IN_DAYS') ?? 7;
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * days); // make const variable?
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * days);
 
     const data: Prisma.RefreshTokenCreateInput = {
       user_agent: userAgent,
@@ -32,8 +32,6 @@ export class RefreshTokenService {
     };
 
     await this.prisma.refreshToken.create({ data });
-
-    console.log(token, expiresAt);
 
     return { token, expiresAt };
   }
@@ -84,6 +82,32 @@ export class RefreshTokenService {
   async revokeAllRefreshTokens(userId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: { user_id: userId, revoked_at: null },
+      data: { revoked_at: new Date() },
+    });
+  }
+
+  async enforceSessionLimit(
+    userId: string,
+    maxSessions: number,
+  ): Promise<void> {
+    const activeSessions = await this.prisma.refreshToken.findMany({
+      where: {
+        user_id: userId,
+        revoked_at: null,
+        expires_at: { gt: new Date() },
+      },
+      orderBy: { created_at: 'asc' },
+      select: { id: true },
+    });
+
+    if (activeSessions.length < maxSessions) return;
+
+    const toRevoke = activeSessions
+      .slice(0, activeSessions.length - maxSessions + 1)
+      .map((t) => t.id);
+
+    await this.prisma.refreshToken.updateMany({
+      where: { id: { in: toRevoke } },
       data: { revoked_at: new Date() },
     });
   }

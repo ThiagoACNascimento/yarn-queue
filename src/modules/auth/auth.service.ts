@@ -8,22 +8,30 @@ import bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenService } from './refresh-token.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly refreshTokenService: RefreshTokenService,
+    private readonly config: ConfigService,
   ) {}
 
   // Used for timing attack security
   private static readonly TIMING_SAFE_DUMMY_HASH =
     '$2a$10$.ELlUrrqrb93WJJwkLbZc.HDcKCKhabDJLRwIwayfI1R6Au3vnzKq';
 
-  async register(userValues: RegisterDto) {
+  async register(
+    userValues: RegisterDto,
+    userAgent: string | null,
+    ipAddress: string | null,
+  ) {
     const foundUser = await this.userService.findOneByEmail(userValues.email);
 
-    // TODO: Refactor after email validation
+    // TODO: Refactor after email validation - change type of error
     if (foundUser) {
       throw new BadRequestException('Erro, try again.');
     }
@@ -31,16 +39,36 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(userValues.password, 10);
 
     const newUser = await this.userService.create({
-      ...userValues,
+      name: userValues.name,
+      email: userValues.email,
       password_hash: hashedPassword,
     });
 
-    const token = this.jwtService.sign({ sub: newUser.id, role: newUser.role });
+    // TODO: add Joi/Zod validation and no repeat maxSession in register and login
+    const maxSessions =
+      this.config.get<number>('MAX_ACTIVE_SESSIONS_PER_USER') ?? 5;
+    await this.refreshTokenService.enforceSessionLimit(newUser.id, maxSessions);
 
-    return { user: newUser, token };
+    const accessToken = this.jwtService.sign({
+      sub: newUser.id,
+      role: newUser.role,
+    });
+
+    const { token: refreshToken } =
+      await this.refreshTokenService.createRefreshToken(
+        newUser.id,
+        userAgent,
+        ipAddress,
+      );
+
+    return { user: newUser, accessToken, refreshToken };
   }
 
-  async login(userValues: LoginDto) {
+  async login(
+    userValues: LoginDto,
+    userAgent: string | null,
+    ipAddress: string | null,
+  ) {
     const foundUser = await this.userService.findOneByEmail(
       userValues.email,
       true,
@@ -68,13 +96,44 @@ export class AuthService {
       );
     }
 
-    const token: string = this.jwtService.sign({
+    // TODO: add Joi/Zod validation and no repeat maxSession in register and login
+    const maxSessions =
+      this.config.get<number>('MAX_ACTIVE_SESSIONS_PER_USER') ?? 5;
+    await this.refreshTokenService.enforceSessionLimit(
+      foundUser.id,
+      maxSessions,
+    );
+
+    const accessToken = this.jwtService.sign({
       sub: foundUser.id,
       role: foundUser.role,
     });
 
+    const { token: refreshToken } =
+      await this.refreshTokenService.createRefreshToken(
+        foundUser.id,
+        userAgent,
+        ipAddress,
+      );
+
     const { password_hash: _password_hash, ...user } = foundUser;
 
-    return { user, token };
+    return { user, accessToken, refreshToken };
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    await this.refreshTokenService.revokeRefreshToken(refreshToken);
+  }
+
+  async refresh(refreshToken: string): Promise<string> {
+    const { userId, role } =
+      await this.refreshTokenService.validateAndUse(refreshToken);
+
+    const newAccessToken = this.jwtService.sign({
+      sub: userId,
+      role: role,
+    });
+
+    return newAccessToken;
   }
 }
