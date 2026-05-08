@@ -105,4 +105,16 @@ export class AuthService {
 
     return { user, accessToken, refreshToken };
   }
+
+  async refresh(refreshToken: string): Promise<string> {
+    const { userId, role } =
+      await this.refreshTokenService.validateAndUse(refreshToken);
+
+    const newAccessToken = this.jwtService.sign({
+      sub: userId,
+      role: role,
+    });
+
+    return newAccessToken;
+  }
 }
