@@ -5,5 +5,5 @@ export const COOKIE_NAME = {
 
 export const COOKIE_PATH = {
   ROOT: '/',
-  REFRESH: '/api/v1/auth/refresh',
+  REFRESH: '/api/v1/auth/',
 };

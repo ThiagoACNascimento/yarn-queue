@@ -84,6 +84,24 @@ export class AuthController {
     return { success: true };
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    const refreshToken = request.cookies[COOKIE_NAME.REFRESH] as
+      | string
+      | undefined;
+
+    if (refreshToken) {
+      await this.authService.logout(refreshToken);
+    }
+
+    response.clearCookie(COOKIE_NAME.ACCESS, { path: COOKIE_PATH.ROOT });
+    response.clearCookie(COOKIE_NAME.REFRESH, { path: COOKIE_PATH.REFRESH });
+  }
+
   // add private method to config options
   private setAccessCookie(response: Response, access_token: string): void {
     response.cookie(COOKIE_NAME.ACCESS, access_token, {

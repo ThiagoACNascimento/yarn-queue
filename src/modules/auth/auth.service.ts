@@ -121,6 +121,10 @@ export class AuthService {
     return { user, accessToken, refreshToken };
   }
 
+  async logout(refreshToken: string): Promise<void> {
+    await this.refreshTokenService.revokeRefreshToken(refreshToken);
+  }
+
   async refresh(refreshToken: string): Promise<string> {
     const { userId, role } =
       await this.refreshTokenService.validateAndUse(refreshToken);
