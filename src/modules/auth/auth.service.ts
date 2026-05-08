@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenService } from './refresh-token.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly userService: UsersService,
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly config: ConfigService,
   ) {}
 
   // Used for timing attack security
@@ -41,6 +43,11 @@ export class AuthService {
       email: userValues.email,
       password_hash: hashedPassword,
     });
+
+    // TODO: add Joi/Zod validation and no repeat maxSession in register and login
+    const maxSessions =
+      this.config.get<number>('MAX_ACTIVE_SESSIONS_PER_USER') ?? 5;
+    await this.refreshTokenService.enforceSessionLimit(newUser.id, maxSessions);
 
     const accessToken = this.jwtService.sign({
       sub: newUser.id,
@@ -88,6 +95,14 @@ export class AuthService {
         'Email or Password is incorrect. Try again',
       );
     }
+
+    // TODO: add Joi/Zod validation and no repeat maxSession in register and login
+    const maxSessions =
+      this.config.get<number>('MAX_ACTIVE_SESSIONS_PER_USER') ?? 5;
+    await this.refreshTokenService.enforceSessionLimit(
+      foundUser.id,
+      maxSessions,
+    );
 
     const accessToken = this.jwtService.sign({
       sub: foundUser.id,

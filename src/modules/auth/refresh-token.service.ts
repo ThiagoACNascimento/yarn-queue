@@ -86,6 +86,32 @@ export class RefreshTokenService {
     });
   }
 
+  async enforceSessionLimit(
+    userId: string,
+    maxSessions: number,
+  ): Promise<void> {
+    const activeSessions = await this.prisma.refreshToken.findMany({
+      where: {
+        user_id: userId,
+        revoked_at: null,
+        expires_at: { gt: new Date() },
+      },
+      orderBy: { created_at: 'asc' },
+      select: { id: true },
+    });
+
+    if (activeSessions.length < maxSessions) return;
+
+    const toRevoke = activeSessions
+      .slice(0, activeSessions.length - maxSessions + 1)
+      .map((t) => t.id);
+
+    await this.prisma.refreshToken.updateMany({
+      where: { id: { in: toRevoke } },
+      data: { revoked_at: new Date() },
+    });
+  }
+
   private generateToken(): string {
     return randomBytes(64).toString('hex');
   }
