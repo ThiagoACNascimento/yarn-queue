@@ -6,8 +6,8 @@ services:
       - '.env.development'
     ports:
       - '5432:5432'
-    # volumes:
-    #   - yarnqueue_data:/var/lib/postgresql/data
+    volumes:
+      - yarnqueue_data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d yarnqueue']
       interval: 5s
@@ -15,5 +15,5 @@ services:
       retries: 5
       start_period: 5s
 
-# volumes:
-#   yarnqueue_data:
+volumes:
+  yarnqueue_data:
