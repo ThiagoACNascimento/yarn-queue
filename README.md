@@ -7,7 +7,7 @@ YarnQueue lets independent producers list handmade products, manage demand-based
 
 ## Features
 
-- **Production-grade authentication** — access + refresh tokens with database-backed revocation, multi-device session management, timing attack mitigation, and httpOnly cookie delivery.
+- **Production-grade authentication** — access + refresh tokens with database-backed revocation, multi-device session management, timing attack mitigation, **JWT auth guard with role-based extension points**,and httpOnly cookie delivery.
 
 ## Tech Stack
 
