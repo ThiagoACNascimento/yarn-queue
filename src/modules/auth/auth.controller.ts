@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -13,12 +14,16 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
 import { COOKIE_NAME, COOKIE_PATH } from './auth.constants';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Role } from '../../generated/prisma/enums';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
+  @Public()
   @HttpCode(HttpStatus.CREATED)
   async register(
     @Body() body: RegisterDto,
@@ -41,6 +46,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() body: LoginDto,
@@ -64,6 +70,7 @@ export class AuthController {
 
   // add @Cookie() decorator
   @Post('refresh')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async refresh(
     @Req() request: Request,
@@ -100,6 +107,12 @@ export class AuthController {
 
     response.clearCookie(COOKIE_NAME.ACCESS, { path: COOKIE_PATH.ROOT });
     response.clearCookie(COOKIE_NAME.REFRESH, { path: COOKIE_PATH.REFRESH });
+  }
+
+  // TODO: change to users
+  @Get('me')
+  me(@CurrentUser() user: { id: string; role: Role }) {
+    return { user };
   }
 
   // add private method to config options

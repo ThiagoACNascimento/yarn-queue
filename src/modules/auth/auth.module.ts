@@ -25,5 +25,6 @@ import { PrismaModule } from '../../infra/database/prisma.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, RefreshTokenService],
+  exports: [JwtModule],
 })
 export class AuthModule {}
