@@ -384,8 +384,6 @@ The flag toggles based on `NODE_ENV` (TODO: move to `ConfigService`).
 
 ## Security Decisions
 
-## Security Decisions
-
 Each decision below is intentional, with rationale and known limitations.
 Cryptography and authentication are areas where defaults matter, and
 choices are explained explicitly.
@@ -450,8 +448,7 @@ brute forcing is infeasible regardless of hash speed.
 Each login (or registration) creates a new refresh token record. A user
 can have multiple active sessions across devices, each independent. The
 `refresh_tokens` table stores `user_agent` and `ip_address` to support
-future "active sessions" UI and "log out from all devices" features
-([#10](https://github.com/ThiagoACNascimento/yarn-queue/issues/10)).
+future "active sessions" UI and "log out from all devices" features.
 
 ### Session limit (cap)
 
@@ -490,4 +487,45 @@ endpoint — a real vulnerability.
 
 ## Limitations & Roadmap
 
-- **`Coming soon`** — known limitations and link to roadmap issues
+The current implementation is deliberately incremental. Several known
+limitations are tracked as issues and will be addressed in future sprints.
+
+### Authentication
+
+- **No refresh token rotation.** Once issued, a
+  refresh token is valid for its full 7-day lifetime, even after multiple
+  uses. If stolen, an attacker can use it repeatedly until expiration or
+  manual revocation.
+
+- **No rate limiting.** `/auth/login`, `/auth/signup`, and `/auth/refresh`
+  are publicly reachable without throttling. Brute force is possible
+  (slow per attempt due to bcrypt cost, but unlimited in number).
+
+- **Email enumeration via signup.** `/auth/signup` returns 400 if email
+  is already registered, allowing attackers to enumerate valid emails.
+
+- **No "active sessions" UI or "log out from all devices" endpoints.**
+  The database supports it (multi-device sessions are recorded with
+  metadata), but the endpoints are not implemented.
+
+### Configuration & infrastructure
+
+- **No environment variable validation at startup.** Critical config
+  (DATABASE_URL, JWT_SECRET, BCRYPT_COST) can be missing or malformed,
+  with errors surfacing only at runtime.
+
+- **No automated cleanup of expired/revoked refresh tokens.** The table
+  grows indefinitely. A daily cron job will prune old entries.
+
+- **No automated tests.** All validation is currently manual via Postman.
+  Unit and E2E tests are planned for Sprint 3.
+
+### Future enhancements
+
+- **Email verification** for new accounts (`active: false` on signup,
+  confirmation email).
+- **Password reset flow** via email.
+- **Two-factor authentication** (TOTP).
+- **OAuth providers** (Google, GitHub login).
+
+These are planned but not scoped to a specific sprint yet.
