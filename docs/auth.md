@@ -150,7 +150,167 @@ This endpoint is idempotent — If no refresh token is present, the response is 
 
 ## Authentication Flows
 
-- **`Coming soon`** — sequence diagrams for each flow.
+### Signup
+
+User creates an account with name + email + password. Server validates that
+the email is not already registered, creates the user with a hashed password,
+and starts a session (auto-login) by setting access + refresh cookies.
+
+```mermaid
+sequenceDiagram
+participant Client
+participant Server
+participant Database
+
+    Client->>Server: POST /auth/signup { name, email, password }
+    Server->>Database: findOneByEmail(email)
+    Database-->>Server: existing user or null
+    alt email already registered
+        Server-->>Client: 400 Bad Request
+    else email is new
+        Server->>Server: bcrypt.hash(password, cost)
+        Server->>Database: create user (with password_hash)
+        Database-->>Server: created user
+        Server->>Database: enforce session limit (revoke oldest if at cap)
+        Database-->>Server: ok
+        Server->>Server: jwt.sign({ sub: user.id, role })
+        Server->>Server: generate random refresh token (64 bytes)
+        Server->>Database: store refresh token (hashed)
+        Database-->>Server: ok
+        Server-->>Client: 201 Created<br/>Set-Cookie: access_token (15min, path=/)<br/>Set-Cookie: refresh_token (7d, path=/api/v1/auth)<br/>Body: { user }
+    end
+```
+
+The endpoint is **idempotent for client perception** but not for server state:
+each successful registration creates a new user. If the email already exists,
+the server returns 400 with a generic error message.
+
+> **Known limitation:** Returning 400 for existing emails enables email
+> enumeration. See [Limitations & Roadmap](#limitations--roadmap).
+
+### Login
+
+User authenticates with email + password. Server validates credentials,
+generates access + refresh tokens, and sets both as httpOnly cookies.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Database
+
+    Client->>Server: POST /auth/login { email, password }
+    Server->>Database: findOneByEmail(email)
+    Database-->>Server: user record (with password_hash)
+    Server->>Server: bcrypt.compare(password, password_hash)
+    Server->>Server: jwt.sign({ sub: user.id, role: user.role })
+    Server->>Server: generate random refresh token (64 bytes)
+    Server->>Database: store refresh token (hashed)
+    Database-->>Server: ok
+    Server->>Database: enforce session limit (revoke oldest if needed)
+    Database-->>Server: ok
+    Server-->>Client: 200 OK<br/>Set-Cookie: access_token (15min, path=/)<br/>Set-Cookie: refresh_token (7d, path=/api/v1/auth)<br/>Body: { user }
+```
+
+### Refresh
+
+When the access token expires, the client calls `/auth/refresh` with the
+refresh cookie. Server validates the refresh against the database, updates
+its `last_used_at` timestamp, and issues a new access token.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Database
+
+    Client->>Server: POST /auth/refresh<br/>Cookie: refresh_token
+    Server->>Server: hash incoming refresh token (SHA-256)
+    Server->>Database: find token by hash (include user)
+    Database-->>Server: refresh token record + user
+    alt token not found
+        Server-->>Client: 401 Unauthorized
+    else token is revoked
+        Server-->>Client: 401 Unauthorized
+    else token is expired
+        Server-->>Client: 401 Unauthorized
+    else token is valid
+        Server->>Database: update last_used_at = NOW()
+        Database-->>Server: ok
+        Server->>Server: jwt.sign({ sub: user.id, role: user.role })
+        Server-->>Client: 200 OK<br/>Set-Cookie: access_token (new, 15min)<br/>Body: { success: true }
+    end
+```
+
+The refresh token itself is **not rotated** in this flow.
+See [Limitations & Roadmap](#limitations--roadmap) for the rationale and
+future plan to implement rotation with reuse detection.
+
+If credentials are invalid (wrong password OR user not found), the server
+responds with **401 Unauthorized** and a generic message. Both failure
+paths execute a bcrypt comparison to keep response time uniform
+(timing-attack mitigation).
+
+### Logout
+
+Client revokes the current session. Server marks the refresh token as
+revoked in the database and clears both cookies.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+    participant Database
+
+    Client->>Server: POST /auth/logout<br/>Cookie: refresh_token
+    alt refresh cookie present
+        Server->>Server: hash refresh token
+        Server->>Database: set revoked_at = NOW() where token_hash matches
+        Database-->>Server: ok (or no-op if not found)
+    end
+    Server-->>Client: 204 No Content<br/>Clear-Cookie: access_token<br/>Clear-Cookie: refresh_token
+```
+
+Logout is **idempotent**: calling it without a refresh cookie, or with an
+already-revoked token, still returns 204 and clears cookies. This avoids
+leaking information about token state.
+
+### Authenticated request
+
+Any non-`@Public()` endpoint requires a valid access token. The global
+`JwtAuthGuard` intercepts the request, validates the JWT, and populates
+`request.user` with the authenticated user's identity.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Guard as JwtAuthGuard
+    participant Handler
+
+    Client->>Guard: GET /auth/me<br/>Cookie: access_token
+    Guard->>Guard: check @Public() metadata
+    alt route is @Public()
+        Guard->>Handler: pass through
+    else route is protected
+        Guard->>Guard: extract access_token from cookie
+        alt cookie missing
+            Guard-->>Client: 401 Unauthorized
+        else cookie present
+            Guard->>Guard: jwt.verifyAsync(token)
+            alt invalid or expired
+                Guard-->>Client: 401 Unauthorized
+            else valid
+                Guard->>Guard: request.user = { id, role }
+                Guard->>Handler: pass through
+                Handler-->>Client: 200 OK<br/>Body: { user }
+            end
+        end
+    end
+```
+
+The guard runs **before any handler**, so endpoints can trust that
+`request.user` is populated when they execute. If the access token has
+expired, the client should call `/auth/refresh` and retry.
 
 ## Cookie Strategy
 
