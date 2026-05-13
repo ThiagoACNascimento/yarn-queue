@@ -24,6 +24,7 @@ const envSchema = z.object({
   }),
   REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().int().min(1).default(7),
   MAX_ACTIVE_SESSIONS_PER_USER: z.coerce.number().int().min(1).default(5),
+  BCRYPT_COST: z.coerce.number().int().min(4).max(14).default(10),
 });
 
 export type Env = z.infer<typeof envSchema>;
