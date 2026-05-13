@@ -4,12 +4,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenService } from './refresh-token.service';
 import { ConfigService } from '@nestjs/config';
+import { Hasher } from '../../infra/cryptography/hasher';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +18,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
     private readonly config: ConfigService,
+    private readonly hasher: Hasher,
   ) {}
 
   // Used for timing attack security
@@ -36,7 +37,7 @@ export class AuthService {
       throw new BadRequestException('Erro, try again.');
     }
 
-    const hashedPassword = await bcrypt.hash(userValues.password, 10);
+    const hashedPassword = await this.hasher.hash(userValues.password);
 
     const newUser = await this.userService.create({
       name: userValues.name,
@@ -44,7 +45,6 @@ export class AuthService {
       password_hash: hashedPassword,
     });
 
-    // TODO: add Joi/Zod validation and no repeat maxSession in register and login
     const maxSessions = this.config.getOrThrow<number>(
       'MAX_ACTIVE_SESSIONS_PER_USER',
     );
@@ -76,7 +76,7 @@ export class AuthService {
     );
 
     if (!foundUser) {
-      await bcrypt.compare(
+      await this.hasher.compare(
         userValues.password,
         AuthService.TIMING_SAFE_DUMMY_HASH,
       );
@@ -86,7 +86,7 @@ export class AuthService {
       );
     }
 
-    const isCorrectPassword = await bcrypt.compare(
+    const isCorrectPassword = await this.hasher.compare(
       userValues.password,
       foundUser.password_hash,
     );
