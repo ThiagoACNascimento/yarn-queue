@@ -25,6 +25,20 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().int().min(1).default(7),
   MAX_ACTIVE_SESSIONS_PER_USER: z.coerce.number().int().min(1).default(5),
   BCRYPT_COST: z.coerce.number().int().min(4).max(14).default(10),
+  COOKIE_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((val) => val === 'true'),
+
+  // Cookie max-age for access token. Should match JWT_EXPIRATION_TIME
+  // (e.g., 15 here if JWT is "15m") to avoid sessions where the cookie
+  // outlives the token validity.
+  ACCESS_TOKEN_EXPIRES_IN_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(60)
+    .default(15),
 });
 
 export type Env = z.infer<typeof envSchema>;
