@@ -70,9 +70,8 @@ export class AuthService {
     userAgent: string | null,
     ipAddress: string | null,
   ) {
-    const foundUser = await this.userService.findOneByEmail(
+    const foundUser = await this.userService.findOneByEmailWithPassword(
       userValues.email,
-      true,
     );
 
     if (!foundUser) {
