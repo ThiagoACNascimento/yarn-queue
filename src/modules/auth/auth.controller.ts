@@ -125,7 +125,6 @@ export class AuthController {
     response.clearCookie(COOKIE_NAME.REFRESH, { path: COOKIE_PATH.REFRESH });
   }
 
-  // TODO: change to users
   @Get('me')
   me(@CurrentUser() user: { id: string; role: Role }) {
     return { user };
