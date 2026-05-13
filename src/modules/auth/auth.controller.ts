@@ -23,6 +23,7 @@ import {
   buildRefreshCookieOptions,
   CookieEnvConfig,
 } from './cookies/cookies-options';
+import { Cookie } from '../../common/decorators/cookies.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -91,18 +92,14 @@ export class AuthController {
     return { user };
   }
 
-  // add @Cookie() decorator
   @Post('refresh')
   @Public()
   @HttpCode(HttpStatus.OK)
   async refresh(
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response,
+    @Cookie(COOKIE_NAME.REFRESH) refreshToken: string | undefined,
+    @Res({ passthrough: true })
+    response: Response,
   ): Promise<{ success: true }> {
-    const refreshToken = request.cookies[COOKIE_NAME.REFRESH] as
-      | string
-      | undefined;
-
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not provided');
     }
@@ -117,13 +114,9 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
-    @Req() request: Request,
+    @Cookie(COOKIE_NAME.REFRESH) refreshToken: string | undefined,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    const refreshToken = request.cookies[COOKIE_NAME.REFRESH] as
-      | string
-      | undefined;
-
     if (refreshToken) {
       await this.authService.logout(refreshToken);
     }
@@ -138,7 +131,6 @@ export class AuthController {
     return { user };
   }
 
-  // add private method to config options
   private setAccessCookie(response: Response, access_token: string): void {
     response.cookie(
       COOKIE_NAME.ACCESS,
