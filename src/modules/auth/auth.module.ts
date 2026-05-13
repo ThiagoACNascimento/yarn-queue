@@ -7,6 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { RefreshTokenService } from './refresh-token.service';
 import { PrismaModule } from '../../infra/database/prisma.module';
 import { CryptographyModule } from '../../infra/cryptography/cryptography.module';
+import { RefreshTokenCleanUpService } from './refresh-token-cleanup.service';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { CryptographyModule } from '../../infra/cryptography/cryptography.module
     CryptographyModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, RefreshTokenService],
+  providers: [AuthService, RefreshTokenService, RefreshTokenCleanUpService],
   exports: [JwtModule],
 })
 export class AuthModule {}
