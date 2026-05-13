@@ -6,12 +6,14 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       envFilePath: '.env.development',
       isGlobal: true,
+      validate: validateEnv,
     }),
     HealthModule,
     PrismaModule,
