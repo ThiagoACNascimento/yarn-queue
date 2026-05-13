@@ -32,7 +32,7 @@ export class AuthService {
   ) {
     const foundUser = await this.userService.findOneByEmail(userValues.email);
 
-    // TODO: Refactor after email validation - change type of error
+    // Se #25: will change error handling when email verifications is added
     if (foundUser) {
       throw new BadRequestException('Erro, try again.');
     }
@@ -45,10 +45,7 @@ export class AuthService {
       password_hash: hashedPassword,
     });
 
-    const maxSessions = this.config.getOrThrow<number>(
-      'MAX_ACTIVE_SESSIONS_PER_USER',
-    );
-    await this.refreshTokenService.enforceSessionLimit(newUser.id, maxSessions);
+    await this.enforceUserSessionLimit(newUser.id);
 
     const accessToken = this.jwtService.sign({
       sub: newUser.id,
@@ -96,14 +93,7 @@ export class AuthService {
       );
     }
 
-    // TODO: add Joi/Zod validation and no repeat maxSession in register and login
-    const maxSessions = this.config.getOrThrow<number>(
-      'MAX_ACTIVE_SESSIONS_PER_USER',
-    );
-    await this.refreshTokenService.enforceSessionLimit(
-      foundUser.id,
-      maxSessions,
-    );
+    await this.enforceUserSessionLimit(foundUser.id);
 
     const accessToken = this.jwtService.sign({
       sub: foundUser.id,
@@ -136,5 +126,12 @@ export class AuthService {
     });
 
     return newAccessToken;
+  }
+
+  private async enforceUserSessionLimit(userId: string): Promise<void> {
+    const maxSessions = this.config.getOrThrow<number>(
+      'MAX_ACTIVE_SESSIONS_PER_USER',
+    );
+    await this.refreshTokenService.enforceSessionLimit(userId, maxSessions);
   }
 }
