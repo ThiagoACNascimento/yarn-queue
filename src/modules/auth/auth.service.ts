@@ -45,8 +45,9 @@ export class AuthService {
     });
 
     // TODO: add Joi/Zod validation and no repeat maxSession in register and login
-    const maxSessions =
-      this.config.get<number>('MAX_ACTIVE_SESSIONS_PER_USER') ?? 5;
+    const maxSessions = this.config.getOrThrow<number>(
+      'MAX_ACTIVE_SESSIONS_PER_USER',
+    );
     await this.refreshTokenService.enforceSessionLimit(newUser.id, maxSessions);
 
     const accessToken = this.jwtService.sign({
@@ -97,8 +98,9 @@ export class AuthService {
     }
 
     // TODO: add Joi/Zod validation and no repeat maxSession in register and login
-    const maxSessions =
-      this.config.get<number>('MAX_ACTIVE_SESSIONS_PER_USER') ?? 5;
+    const maxSessions = this.config.getOrThrow<number>(
+      'MAX_ACTIVE_SESSIONS_PER_USER',
+    );
     await this.refreshTokenService.enforceSessionLimit(
       foundUser.id,
       maxSessions,
