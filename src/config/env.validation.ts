@@ -23,12 +23,7 @@ const envSchema = z.object({
     error: 'JWT_EXPIRATION_TIME must match format like "15m", "1h", "7d"',
   }),
   REFRESH_TOKEN_EXPIRES_IN_DAYS: z.coerce.number().int().min(1).default(7),
-  MAX_ACTIVE_SESSIONS_PER_USER: z.coerce
-    .number()
-    .int()
-    .positive()
-    .min(1)
-    .default(5),
+  MAX_ACTIVE_SESSIONS_PER_USER: z.coerce.number().int().min(1).default(5),
 });
 
 export type Env = z.infer<typeof envSchema>;
