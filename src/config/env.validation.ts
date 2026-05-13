@@ -39,6 +39,13 @@ const envSchema = z.object({
     .min(1)
     .max(60)
     .default(15),
+
+  // Cleanup Jobs
+  ENABLE_CLEANUP_JOBS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((val) => val === 'true'),
+  REFRESH_TOKEN_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
 });
 
 export type Env = z.infer<typeof envSchema>;
