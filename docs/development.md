@@ -88,6 +88,7 @@ The project is organized according to the following structure:
     .
     ├── prisma              # Schema and migrations
     ├── src
+    │   ├── config          # Env Validation
     │   ├── generated       # Generated Prisma client
     │   ├── infra
     │   │     └── database  # Database module (PrismaService)
