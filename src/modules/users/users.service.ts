@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/database/prisma.service';
 import { Prisma } from '../../generated/prisma/client';
+import { UserWithoutPassword, UserWithPassword } from './users.types';
 
 @Injectable()
 export class UsersService {
@@ -10,10 +11,18 @@ export class UsersService {
     return this.prisma.user.create({ data });
   }
 
-  findOneByEmail(email: string, includePassword: boolean = false) {
+  async findOneByEmail(email: string): Promise<UserWithoutPassword | null> {
     return this.prisma.user.findUnique({
       where: { email },
-      omit: { password_hash: !includePassword },
+    });
+  }
+
+  async findOneByEmailWithPassword(
+    email: string,
+  ): Promise<UserWithPassword | null> {
+    return this.prisma.user.findUnique({
+      where: { email },
+      omit: { password_hash: false },
     });
   }
 }
