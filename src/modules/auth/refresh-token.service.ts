@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../infra/database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'node:crypto';
@@ -6,6 +6,8 @@ import type { Prisma, Role } from '../../generated/prisma/client';
 
 @Injectable()
 export class RefreshTokenService {
+  private readonly logger = new Logger(RefreshTokenService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -40,23 +42,34 @@ export class RefreshTokenService {
 
   async validateAndUse(token: string): Promise<{ userId: string; role: Role }> {
     const hashedToken = this.hashToken(token);
+    const hashedTokenPrefix = hashedToken.substring(0, 8);
 
     const refreshToken = await this.prisma.refreshToken.findUnique({
       where: { token_hash: hashedToken },
       include: { user: true },
     });
 
-    // add logger to server only
     if (!refreshToken) {
+      this.logger.warn('Refresh Token not found', { hashedTokenPrefix });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     if (refreshToken.revoked_at !== null) {
+      this.logger.warn('Refresh Token already revoked', {
+        userId: refreshToken.user_id,
+        hashedTokenPrefix,
+        revokedAt: refreshToken.revoked_at,
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     const now = new Date();
     if (refreshToken.expires_at < now) {
+      this.logger.log('Refresh Token expired', {
+        userId: refreshToken.user_id,
+        hashedTokenPrefix,
+        revokedAt: refreshToken.revoked_at,
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
