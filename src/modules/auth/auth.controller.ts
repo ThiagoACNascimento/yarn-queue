@@ -17,10 +17,33 @@ import { COOKIE_NAME, COOKIE_PATH } from './auth.constants';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Role } from '../../generated/prisma/enums';
 import { Public } from './decorators/public.decorator';
+import { ConfigService } from '@nestjs/config';
+import {
+  buildAccessCookieOptions,
+  buildRefreshCookieOptions,
+  CookieEnvConfig,
+} from './cookies/cookies-options';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly cookieConfig: CookieEnvConfig;
+  private readonly MS_PER_MINUTE = 60 * 1000;
+  private readonly MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {
+    this.cookieConfig = {
+      secure: this.config.getOrThrow<boolean>('COOKIE_SECURE'),
+      accessTokenMaxAgeMs:
+        this.config.getOrThrow<number>('ACCESS_TOKEN_EXPIRES_IN_MINUTES') *
+        this.MS_PER_MINUTE,
+      refreshTokenMaxAgeMs:
+        this.config.getOrThrow<number>('REFRESH_TOKEN_EXPIRES_IN_DAYS') *
+        this.MS_PER_DAY,
+    };
+  }
 
   @Post('signup')
   @Public()
@@ -117,22 +140,18 @@ export class AuthController {
 
   // add private method to config options
   private setAccessCookie(response: Response, access_token: string): void {
-    response.cookie(COOKIE_NAME.ACCESS, access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000,
-      path: COOKIE_PATH.ROOT,
-    });
+    response.cookie(
+      COOKIE_NAME.ACCESS,
+      access_token,
+      buildAccessCookieOptions(this.cookieConfig),
+    );
   }
 
   private setRefreshCookie(response: Response, refreshToken: string): void {
-    response.cookie(COOKIE_NAME.REFRESH, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-      path: COOKIE_PATH.REFRESH,
-    });
+    response.cookie(
+      COOKIE_NAME.REFRESH,
+      refreshToken,
+      buildRefreshCookieOptions(this.cookieConfig),
+    );
   }
 }
