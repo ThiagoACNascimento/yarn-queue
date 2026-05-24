@@ -6,6 +6,7 @@ import { Hasher } from '../../infra/cryptography/hasher';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Role } from '../../generated/prisma/enums';
+import { BadRequestException } from '@nestjs/common';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -104,6 +105,36 @@ describe('AuthService', () => {
       expect(result.user).toBeDefined();
       expect(result.accessToken).toBe('fake-access-token');
       expect(result.refreshToken).toBe('fake-refresh-token');
+    });
+
+    it('should throw when email aready exists', async () => {
+      // ARRANGE
+      const input = {
+        name: 'Thiago',
+        email: 'thiago@gmail.com',
+        password: '12345',
+      };
+
+      const fakeCreatedUser = {
+        id: 'user-uuid',
+        name: 'Alice',
+        email: 'alice@example.com',
+        active: false,
+        role: Role.CUSTOMER,
+        created_at: new Date(),
+        updated_at: new Date(),
+        deleted_at: null,
+        expired_delete: null,
+      };
+
+      mockUsersService.findOneByEmail.mockResolvedValue(fakeCreatedUser);
+
+      // ACT + ASSERT
+      await expect(
+        service.register(input, 'user-agente', '127.0.0.1'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockUsersService.create).not.toHaveBeenCalled();
     });
   });
 });
