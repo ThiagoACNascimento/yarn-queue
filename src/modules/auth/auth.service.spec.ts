@@ -138,4 +138,105 @@ describe('AuthService', () => {
       expect(mockUsersService.create).not.toHaveBeenCalled();
     });
   });
+
+  describe('login', () => {
+    it('should return user, access-token and refresh-token when credentials are correct', async () => {
+      // ARRANGE
+      const input = {
+        email: 'thiago@gmail.com',
+        password: '12345',
+      };
+
+      const fakeCreatedUser = {
+        id: 'user-uuid',
+        name: 'Thiago',
+        email: 'thiago@gmail.com',
+        password_hash: 'hashed_password',
+        active: false,
+        role: Role.CUSTOMER,
+        created_at: new Date(),
+        updated_at: new Date(),
+        deleted_at: null,
+        expired_delete: null,
+      };
+
+      mockUsersService.findOneByEmailWithPassword.mockResolvedValue(
+        fakeCreatedUser,
+      );
+
+      mockHasher.compare.mockResolvedValue(true);
+      mockJwtService.sign.mockReturnValue('fake-access-token');
+      mockRefreshTokenService.createRefreshToken.mockResolvedValue({
+        token: 'fake-refresh-token',
+        expiresAt: new Date(),
+      });
+      mockConfig.getOrThrow.mockReturnValue(5);
+
+      // ACT
+      const result = await service.login(input, 'user-agent', '127.0.0.1');
+
+      // ASSERT
+      expect(mockHasher.compare).toHaveBeenCalledWith(
+        '12345',
+        'hashed_password',
+      );
+      expect(result.user.id).toBe('user-uuid');
+      expect(result.user).not.toHaveProperty('password_hash');
+      expect(result.accessToken).toBe('fake-access-token');
+      expect(result.refreshToken).toBe('fake-refresh-token');
+      expect(mockRefreshTokenService.createRefreshToken).toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException when email does not exist', async () => {
+      // ARRANGE
+      const input = {
+        email: 'thiago@gmail.com',
+        password: '12345',
+      };
+
+      mockUsersService.findOneByEmailWithPassword.mockResolvedValue(null);
+
+      // ACT + ASSERT
+      await expect(
+        service.login(input, 'user-agent', '127.0.0.1'),
+      ).rejects.toThrow('Email or Password is incorrect. Try again');
+
+      expect(mockHasher.compare).toHaveBeenCalled();
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
+      expect(mockRefreshTokenService.createRefreshToken).not.toHaveBeenCalled();
+    });
+    it('should throw UnauthorizedException when password is incorrect', async () => {
+      // ARRANGE
+      const input = {
+        email: 'thiago@gmail.com',
+        password: '12345',
+      };
+
+      const fakeCreatedUser = {
+        id: 'user-uuid',
+        name: 'Thiago',
+        email: 'thiago@gmail.com',
+        password_hash: 'hashed_password',
+        active: false,
+        role: Role.CUSTOMER,
+        created_at: new Date(),
+        updated_at: new Date(),
+        deleted_at: null,
+        expired_delete: null,
+      };
+
+      mockUsersService.findOneByEmailWithPassword.mockResolvedValue(
+        fakeCreatedUser,
+      );
+      mockHasher.compare.mockResolvedValue(false);
+
+      // ACT + ASSERT
+      await expect(
+        service.login(input, 'user-agent', '127.0.0.1'),
+      ).rejects.toThrow('Email or Password is incorrect. Try again');
+
+      expect(mockJwtService.sign).not.toHaveBeenCalled();
+      expect(mockRefreshTokenService.createRefreshToken).not.toHaveBeenCalled();
+    });
+  });
 });
