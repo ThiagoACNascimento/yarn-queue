@@ -65,7 +65,7 @@ describe('AuthService', () => {
 
   describe('register', () => {
     it('should hash password and create user when email is new', async () => {
-      // ARANGE
+      // ARRANGE
       const input = {
         name: 'thiago',
         email: 'thiago@gmail.com',
@@ -77,8 +77,8 @@ describe('AuthService', () => {
 
       const fakeCreatedUser = {
         id: 'user-uuid',
-        name: 'Alice',
-        email: 'alice@example.com',
+        name: 'thiago',
+        email: 'thiago@gmail.com',
         password_hash: 'hashed-password',
         active: false,
         role: Role.CUSTOMER,
@@ -102,12 +102,13 @@ describe('AuthService', () => {
 
       // ASSERT
       expect(mockHasher.hash).toHaveBeenCalledWith('my_password');
-      expect(result.user).toBeDefined();
+      expect(result.user.id).toBe('user-uuid');
+      // expect(result.user).not.toHaveProperty('password_hash');
       expect(result.accessToken).toBe('fake-access-token');
       expect(result.refreshToken).toBe('fake-refresh-token');
     });
 
-    it('should throw when email aready exists', async () => {
+    it('should throw when email already exists', async () => {
       // ARRANGE
       const input = {
         name: 'Thiago',
@@ -117,8 +118,8 @@ describe('AuthService', () => {
 
       const fakeCreatedUser = {
         id: 'user-uuid',
-        name: 'Alice',
-        email: 'alice@example.com',
+        name: 'Thiago',
+        email: 'thiago@gmail.com',
         active: false,
         role: Role.CUSTOMER,
         created_at: new Date(),
@@ -131,7 +132,7 @@ describe('AuthService', () => {
 
       // ACT + ASSERT
       await expect(
-        service.register(input, 'user-agente', '127.0.0.1'),
+        service.register(input, 'user-agent', '127.0.0.1'),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockUsersService.create).not.toHaveBeenCalled();
